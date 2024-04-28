@@ -214,37 +214,24 @@ export async function POST({ request, locals, params, getClientAddress }) {
 		if (messageToRetry.from === "user" && newPrompt) {
 			// add a sibling to this message from the user, with the alternative prompt
 			// add a children to that sibling, where we can write to
-			const newUserMessageId = addSibling(
-				conv,
-				{ from: "user", content: newPrompt, createdAt: new Date(), updatedAt: new Date() },
-				messageId
-			);
+			const newUserMessageId = addSibling(conv, { from: "user", content: newPrompt }, messageId);
 			messageToWriteToId = addChildren(
 				conv,
-				{
-					from: "assistant",
-					content: "",
-					files: hashes,
-					createdAt: new Date(),
-					updatedAt: new Date(),
-				},
+				{ from: "assistant", content: "", files: hashes },
 				newUserMessageId
 			);
 			messagesForPrompt = buildSubtree(conv, newUserMessageId);
 		} else if (messageToRetry.from === "assistant") {
 			// we're retrying an assistant message, to generate a new answer
 			// just add a sibling to the assistant answer where we can write to
-			messageToWriteToId = addSibling(
-				conv,
-				{ from: "assistant", content: "", createdAt: new Date(), updatedAt: new Date() },
-				messageId
-			);
+			messageToWriteToId = addSibling(conv, { from: "assistant", content: "" }, messageId);
 			messagesForPrompt = buildSubtree(conv, messageId);
 			messagesForPrompt.pop(); // don't need the latest assistant message in the prompt since we're retrying it
 		}
 	} else {
 		// just a normal linear conversation, so we add the user message
 		// and the blank assistant message back to back
+		//console.log("333333")
 		const newUserMessageId = addChildren(
 			conv,
 			{
@@ -359,19 +346,20 @@ export async function POST({ request, locals, params, getClientAddress }) {
 				{ projection: { rag: 1, dynamicPrompt: 1, generateSettings: 1 } }
 			);
 
-			const assistantHasDynamicPrompt =
-				ENABLE_ASSISTANTS_RAG === "true" && !!assistant && !!assistant?.dynamicPrompt;
-
-			const assistantHasWebSearch =
+			const assistantHasRAG =
 				ENABLE_ASSISTANTS_RAG === "true" &&
-				!!assistant &&
-				!!assistant.rag &&
-				(assistant.rag.allowedLinks.length > 0 ||
-					assistant.rag.allowedDomains.length > 0 ||
-					assistant.rag.allowAllDomains);
+				assistant &&
+				((assistant.rag &&
+					(assistant.rag.allowedLinks.length > 0 ||
+						assistant.rag.allowedDomains.length > 0 ||
+						assistant.rag.allowAllDomains)) ||
+					assistant.dynamicPrompt);
 
 			// perform websearch if needed
-			if (!isContinue && (webSearch || assistantHasWebSearch)) {
+			if (
+				!isContinue &&
+				((webSearch && !conv.assistantId) || (assistantHasRAG && !assistant.dynamicPrompt))
+			) {
 				messageToWriteTo.webSearch = await runWebSearch(
 					conv,
 					messagesForPrompt,
@@ -382,7 +370,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 
 			let preprompt = conv.preprompt;
 
-			if (assistantHasDynamicPrompt && preprompt) {
+			if (assistant?.dynamicPrompt && preprompt && ENABLE_ASSISTANTS_RAG === "true") {
 				// process the preprompt
 				const urlRegex = /{{\s?url=(.*?)\s?}}/g;
 				let match;
@@ -424,10 +412,9 @@ export async function POST({ request, locals, params, getClientAddress }) {
 
 			let buffer = "";
 
-			messageToWriteTo.updatedAt = new Date();
-
 			try {
 				const endpoint = await model.getEndpoint();
+				//console.log(processedMessages);
 				for await (const output of await endpoint({
 					messages: processedMessages,
 					preprompt,
@@ -437,16 +424,15 @@ export async function POST({ request, locals, params, getClientAddress }) {
 					// if not generated_text is here it means the generation is not done
 					if (!output.generated_text) {
 						if (!output.token.special) {
+							// 33% chance to send the stream update, with a max buffer size of 30 chars
 							buffer += output.token.text;
 
-							// send the first 5 chars
-							// and leave the rest in the buffer
-							if (buffer.length >= 5) {
+							if (Math.random() < 0.33 || buffer.length > 30) {
 								update({
 									type: "stream",
-									token: buffer.slice(0, 5),
+									token: buffer,
 								});
-								buffer = buffer.slice(5);
+								buffer = "";
 							}
 
 							// abort check
@@ -463,8 +449,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 							messageToWriteTo.content += output.token.text;
 						}
 					} else {
-						messageToWriteTo.interrupted =
-							!output.token.special && !model.parameters.stop?.includes(output.token.text);
+						messageToWriteTo.interrupted = !output.token.special;
 						// add output.generated text to the last message
 						// strip end tokens from the output.generated_text
 						const text = (model.parameters.stop ?? []).reduce((acc: string, curr: string) => {
@@ -476,6 +461,7 @@ export async function POST({ request, locals, params, getClientAddress }) {
 						}, output.generated_text.trimEnd());
 
 						messageToWriteTo.content = previousText + text;
+						messageToWriteTo.updatedAt = new Date();
 					}
 				}
 			} catch (e) {

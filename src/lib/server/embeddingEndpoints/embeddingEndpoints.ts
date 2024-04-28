@@ -11,7 +11,6 @@ import {
 	embeddingEndpointOpenAI,
 	embeddingEndpointOpenAIParametersSchema,
 } from "./openai/embeddingEndpoints";
-import { embeddingEndpointHfApi, embeddingEndpointHfApiSchema } from "./hfApi/embeddingHfApi";
 
 // parameters passed when generating text
 interface EmbeddingEndpointParameters {
@@ -27,7 +26,6 @@ export const embeddingEndpointSchema = z.discriminatedUnion("type", [
 	embeddingEndpointTeiParametersSchema,
 	embeddingEndpointTransformersJSParametersSchema,
 	embeddingEndpointOpenAIParametersSchema,
-	embeddingEndpointHfApiSchema,
 ]);
 
 type EmbeddingEndpointTypeOptions = z.infer<typeof embeddingEndpointSchema>["type"];
@@ -44,7 +42,6 @@ export const embeddingEndpoints: {
 	tei: embeddingEndpointTei,
 	transformersjs: embeddingEndpointTransformersJS,
 	openai: embeddingEndpointOpenAI,
-	hfapi: embeddingEndpointHfApi,
 };
 
 export default embeddingEndpoints;

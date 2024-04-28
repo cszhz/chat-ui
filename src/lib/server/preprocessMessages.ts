@@ -24,6 +24,8 @@ export async function preprocessMessages(
 					.filter((el) => el.from === "user")
 					.slice(0, -1)
 					.map((el) => el.content);
+				//previousQuestions = [];
+				//console.log(previousQuestions);
 				const currentDate = format(new Date(), "MMMM d, yyyy");
 
 				message.content = `I searched the web using the query: ${webSearch.searchQuery}. 

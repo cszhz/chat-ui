@@ -27,11 +27,7 @@ export async function summarize(prompt: string) {
 
 	return await generateFromDefaultEndpoint({
 		messages,
-		preprompt:
-			"You are a summarization AI. Summarize the user's request into a single short sentence of four words or less. Do not try to answer it, only summarize the user's query. Always start your answer with an emoji relevant to the summary",
-		generateSettings: {
-			max_new_tokens: 15,
-		},
+		preprompt: `You are a summarization AI. You'll never answer a user's question directly, but instead summarize the user's request into a single short sentence of four words or less. Always start your answer with an emoji relevant to the summary.`,
 	})
 		.then((summary) => {
 			// add an emoji if none is found in the first three characters

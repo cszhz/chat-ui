@@ -16,10 +16,6 @@ import type { Model } from "$lib/types/Model";
 import endpointCloudflare, {
 	endpointCloudflareParametersSchema,
 } from "./cloudflare/endpointCloudflare";
-import { endpointCohere, endpointCohereParametersSchema } from "./cohere/endpointCohere";
-import endpointLangserve, {
-	endpointLangserveParametersSchema,
-} from "./langserve/endpointLangserve";
 
 // parameters passed when generating text
 export interface EndpointParameters {
@@ -50,8 +46,6 @@ export const endpoints = {
 	ollama: endpointOllama,
 	vertex: endpointVertex,
 	cloudflare: endpointCloudflare,
-	cohere: endpointCohere,
-	langserve: endpointLangserve,
 };
 
 export const endpointSchema = z.discriminatedUnion("type", [
@@ -63,7 +57,5 @@ export const endpointSchema = z.discriminatedUnion("type", [
 	endpointOllamaParametersSchema,
 	endpointVertexParametersSchema,
 	endpointCloudflareParametersSchema,
-	endpointCohereParametersSchema,
-	endpointLangserveParametersSchema,
 ]);
 export default endpoints;

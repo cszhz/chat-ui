@@ -6,6 +6,7 @@ export function buildSubtree(
 	id: Message["id"]
 ): Message[] {
 	if (!conv.rootMessageId) {
+		console(conv.rootMessageId);
 		if (conv.messages.length === 0) return [];
 		// legacy conversation slice up to id
 		const index = conv.messages.findIndex((m) => m.id === id);
@@ -14,8 +15,13 @@ export function buildSubtree(
 	} else {
 		// find the message with the right id then create the ancestor tree
 		const message = conv.messages.find((m) => m.id === id);
-		if (!message) throw new Error("Message not found");
+		//console.log(message);
 
+		if (!message) throw new Error("Message not found");
+		//leo add, direct return message without build chat history of assistant
+		return [message];
+
+		/*
 		return [
 			...(message.ancestors?.map((ancestorId) => {
 				const ancestor = conv.messages.find((m) => m.id === ancestorId);
@@ -24,5 +30,6 @@ export function buildSubtree(
 			}) ?? []),
 			message,
 		];
+	       */
 	}
 }

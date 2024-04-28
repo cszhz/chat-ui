@@ -60,6 +60,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 
 	const token = event.cookies.get(COOKIE_NAME);
 
+	//console.log("token:"+token);
 	let secretSessionId: string;
 	let sessionId: string;
 
@@ -73,8 +74,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 			event.locals.user = user;
 		}
 	} else {
-		// if the user doesn't have any cookie, we generate one for him
-		secretSessionId = crypto.randomUUID();
+
 		sessionId = await sha256(secretSessionId);
 
 		if (await collections.sessions.findOne({ sessionId })) {

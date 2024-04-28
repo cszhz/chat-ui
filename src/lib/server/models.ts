@@ -14,10 +14,7 @@ import endpointTgi from "./endpoints/tgi/endpointTgi";
 import { sum } from "$lib/utils/sum";
 import { embeddingModels, validateEmbeddingModelByName } from "./embeddingModels";
 
-import type { PreTrainedTokenizer } from "@xenova/transformers";
-
 import JSON5 from "json5";
-import { getTokenizer } from "$lib/utils/getTokenizer";
 
 type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
 
@@ -42,9 +39,23 @@ const modelConfig = z.object({
 		.optional(),
 	datasetName: z.string().min(1).optional(),
 	datasetUrl: z.string().url().optional(),
+	userMessageToken: z.string().default(""),
+	userMessageEndToken: z.string().default(""),
+	assistantMessageToken: z.string().default(""),
+	assistantMessageEndToken: z.string().default(""),
+	messageEndToken: z.string().default(""),
 	preprompt: z.string().default(""),
 	prepromptUrl: z.string().url().optional(),
-	chatPromptTemplate: z.string().optional(),
+	chatPromptTemplate: z
+		.string()
+		.default(
+			"{{preprompt}}" +
+				"{{#each messages}}" +
+				"{{#ifUser}}{{@root.userMessageToken}}{{content}}{{@root.userMessageEndToken}}{{/ifUser}}" +
+				"{{#ifAssistant}}{{@root.assistantMessageToken}}{{content}}{{@root.assistantMessageEndToken}}{{/ifAssistant}}" +
+				"{{/each}}" +
+				"{{assistantMessageToken}}"
+		),
 	promptExamples: z
 		.array(
 			z.object({
@@ -73,67 +84,11 @@ const modelConfig = z.object({
 
 const modelsRaw = z.array(modelConfig).parse(JSON5.parse(MODELS));
 
-async function getChatPromptRender(
-	m: z.infer<typeof modelConfig>
-): Promise<ReturnType<typeof compileTemplate<ChatTemplateInput>>> {
-	if (m.chatPromptTemplate) {
-		return compileTemplate<ChatTemplateInput>(m.chatPromptTemplate, m);
-	}
-	let tokenizer: PreTrainedTokenizer;
-
-	if (!m.tokenizer) {
-		return compileTemplate<ChatTemplateInput>(
-			"{{#if @root.preprompt}}<|im_start|>system\n{{@root.preprompt}}<|im_end|>\n{{/if}}{{#each messages}}{{#ifUser}}<|im_start|>user\n{{content}}<|im_end|>\n<|im_start|>assistant\n{{/ifUser}}{{#ifAssistant}}{{content}}<|im_end|>\n{{/ifAssistant}}{{/each}}",
-			m
-		);
-	}
-
-	try {
-		tokenizer = await getTokenizer(m.tokenizer);
-	} catch (e) {
-		console.error(
-			"Failed to load tokenizer for model " +
-				m.name +
-				" consider setting chatPromptTemplate manually or making sure the model is available on the hub. Error: " +
-				(e as Error).message
-		);
-		process.exit();
-	}
-
-	const renderTemplate = ({ messages, preprompt }: ChatTemplateInput) => {
-		let formattedMessages: { role: string; content: string }[] = messages.map((message) => ({
-			content: message.content,
-			role: message.from,
-		}));
-
-		if (preprompt) {
-			formattedMessages = [
-				{
-					role: "system",
-					content: preprompt,
-				},
-				...formattedMessages,
-			];
-		}
-
-		const output = tokenizer.apply_chat_template(formattedMessages, {
-			tokenize: false,
-			add_generation_prompt: true,
-		});
-
-		if (typeof output !== "string") {
-			throw new Error("Failed to apply chat template, the output is not a string");
-		}
-
-		return output;
-	};
-
-	return renderTemplate;
-}
-
 const processModel = async (m: z.infer<typeof modelConfig>) => ({
 	...m,
-	chatPromptRender: await getChatPromptRender(m),
+	userMessageEndToken: m?.userMessageEndToken || m?.messageEndToken,
+	assistantMessageEndToken: m?.assistantMessageEndToken || m?.messageEndToken,
+	chatPromptRender: compileTemplate<ChatTemplateInput>(m.chatPromptTemplate, m),
 	id: m.id || m.name,
 	displayName: m.displayName || m.name,
 	preprompt: m.prepromptUrl ? await fetch(m.prepromptUrl).then((r) => r.text()) : m.preprompt,
@@ -177,10 +132,6 @@ const addEndpoint = (m: Awaited<ReturnType<typeof processModel>>) => ({
 						return await endpoints.vertex(args);
 					case "cloudflare":
 						return await endpoints.cloudflare(args);
-					case "cohere":
-						return await endpoints.cohere(args);
-					case "langserve":
-						return await endpoints.langserve(args);
 					default:
 						// for legacy reason
 						return endpoints.tgi(args);

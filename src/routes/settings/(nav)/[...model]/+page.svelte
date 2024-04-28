@@ -8,6 +8,8 @@
 	import TokensCounter from "$lib/components/TokensCounter.svelte";
 	import CarbonArrowUpRight from "~icons/carbon/arrow-up-right";
 	import CarbonLink from "~icons/carbon/link";
+	import { starttgi } from "$lib/utils/tgi";
+	import { modelstatus } from "$lib/utils/tgi";
 
 	const settings = useSettingsStore();
 
@@ -26,6 +28,7 @@
 	$: isActive = $settings.activeModel === $page.params.model;
 
 	$: model = $page.data.models.find((el: BackendModel) => el.id === $page.params.model);
+        let modelStatus="";
 </script>
 
 <div class="flex flex-col items-start">
@@ -87,6 +90,7 @@
 		</CopyToClipBoardBtn>
 	</div>
 
+<div class="flex flex-wrap items-center gap-2 md:gap-4">
 	<button
 		class="{isActive
 			? 'bg-gray-100'
@@ -95,10 +99,37 @@
 		name="Activate model"
 		on:click|stopPropagation={() => {
 			$settings.activeModel = $page.params.model;
+			starttgi($page.params.model);
 		}}
 	>
 		{isActive ? "Active model" : "Activate"}
 	</button>
+
+        {#if isActive}
+
+
+<button
+ class="bg-black text-white my-5 flex items-center rounded-full px-3 py-1"
+  name="Status"
+  on:click|stopPropagation={async() => {
+   modelStatus=await modelstatus();
+   document.getElementById("result").innerHTML=modelStatus;
+   if (modelStatus=="Available"){
+         document.getElementById("result").style.color = "green";
+   }
+   else
+   {
+   	document.getElementById("result").style.color = "red"; 
+   }
+}}
+>
+Retrieve model status
+</button>
+<p class="whitespace-pre-wrap" id="result"> </p>
+	{/if}
+
+
+</div>
 
 	<div class="relative flex w-full flex-col gap-2">
 		<div class="flex w-full flex-row content-between">

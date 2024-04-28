@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { EmbeddingEndpoint } from "../embeddingEndpoints";
-import type { Tensor, FeatureExtractionPipeline } from "@xenova/transformers";
+import type { Tensor, Pipeline } from "@xenova/transformers";
 import { pipeline } from "@xenova/transformers";
 
 export const embeddingEndpointTransformersJSParametersSchema = z.object({
@@ -11,17 +11,16 @@ export const embeddingEndpointTransformersJSParametersSchema = z.object({
 
 // Use the Singleton pattern to enable lazy construction of the pipeline.
 class TransformersJSModelsSingleton {
-	static instances: Array<[string, Promise<FeatureExtractionPipeline>]> = [];
+	static instances: Array<[string, Promise<Pipeline>]> = [];
 
-	static async getInstance(modelName: string): Promise<FeatureExtractionPipeline> {
+	static async getInstance(modelName: string): Promise<Pipeline> {
 		const modelPipelineInstance = this.instances.find(([name]) => name === modelName);
 
 		if (modelPipelineInstance) {
 			const [, modelPipeline] = modelPipelineInstance;
-			// dispose of the previous pipeline to clear memory
-			await (await modelPipeline).dispose();
-			this.instances = this.instances.filter(([name]) => name !== modelName);
+			return modelPipeline;
 		}
+
 		const newModelPipeline = pipeline("feature-extraction", modelName);
 		this.instances.push([modelName, newModelPipeline]);
 

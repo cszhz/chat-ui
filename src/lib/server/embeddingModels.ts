@@ -73,10 +73,6 @@ const addEndpoint = (m: Awaited<ReturnType<typeof processEmbeddingModel>>) => ({
 						return embeddingEndpoints.transformersjs(args);
 					case "openai":
 						return embeddingEndpoints.openai(args);
-					case "hfapi":
-						return embeddingEndpoints.hfapi(args);
-					default:
-						throw new Error(`Unknown endpoint type: ${args}`);
 				}
 			}
 

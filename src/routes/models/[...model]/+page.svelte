@@ -9,6 +9,7 @@
 	import { useSettingsStore } from "$lib/stores/settings";
 	import { ERROR_MESSAGES, error } from "$lib/stores/errors";
 	import { pendingMessage } from "$lib/stores/pendingMessage";
+        import { starttgi } from "$lib/utils/tgi";
 
 	export let data;
 
@@ -18,6 +19,9 @@
 	const settings = useSettingsStore();
 	const modelId = $page.params.model;
 
+
+	//leo add
+	starttgi(modelId);
 	async function createConversation(message: string) {
 		try {
 			loading = true;
@@ -37,6 +41,7 @@
 					model = data.models[0].id;
 				}
 			}
+
 			const res = await fetch(`${base}/conversation`, {
 				method: "POST",
 				headers: {

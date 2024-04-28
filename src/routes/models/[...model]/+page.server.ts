@@ -12,6 +12,7 @@ export async function load({ params, locals, parent }) {
 		throw redirect(302, `${base}/`);
 	}
 
+
 	if (locals.user?._id ?? locals.sessionId) {
 		await collections.settings.updateOne(
 			authCondition(locals),

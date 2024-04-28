@@ -30,7 +30,7 @@
 <div class="my-auto grid gap-8 lg:grid-cols-3">
 	<div class="lg:col-span-1">
 		<div>
-			<div class="mb-3 flex items-center text-2xl font-semibold">
+			<div class="mb-3 flex items-center text-xl font-semibold">
 				<Logo classNames="mr-1 flex-none" />
 				{PUBLIC_APP_NAME}
 				<div
